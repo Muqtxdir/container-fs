@@ -6,6 +6,7 @@ on:
     paths:
       - debian/**
       - common.conf
+      - mkosi.extra/**
       - .github/workflows/debian.yml
       - .github/workflows/rootfs.yml
   schedule:

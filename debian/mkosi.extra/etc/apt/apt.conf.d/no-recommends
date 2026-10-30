@@ -1,0 +1,2 @@
+// Skip recommended packages, as the image does.
+APT::Install-Recommends "false";

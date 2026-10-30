@@ -1,0 +1,6 @@
+# Drop man pages, translations and docs, keeping copyrights and changelogs.
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/locale/*/LC_MESSAGES/*.mo
+path-exclude=/usr/share/doc/*
+path-include=/usr/share/doc/*/copyright
+path-include=/usr/share/doc/*/changelog.*

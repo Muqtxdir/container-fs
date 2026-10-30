@@ -6,6 +6,7 @@ on:
     paths:
       - fedora/**
       - common.conf
+      - mkosi.extra/**
       - .github/workflows/fedora.yml
       - .github/workflows/rootfs.yml
   schedule:

@@ -1,6 +1,4 @@
-# Builds each variant with mkosi and pushes it to
-# ghcr.io/<owner>/<repo>/<distro>:<variant>, a multi-arch index of the
-# per-architecture images tagged <variant>-<arch>.
+# Builds each variant with mkosi and pushes <variant> (multi-arch) and <variant>-<arch> tags.
 name: rootfs
 
 on:

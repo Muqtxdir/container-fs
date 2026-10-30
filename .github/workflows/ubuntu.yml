@@ -6,6 +6,7 @@ on:
     paths:
       - ubuntu/**
       - common.conf
+      - mkosi.extra/**
       - .github/workflows/ubuntu.yml
       - .github/workflows/rootfs.yml
   schedule:
