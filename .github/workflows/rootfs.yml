@@ -56,17 +56,16 @@ jobs:
       matrix:
         variant: ${{ fromJSON(inputs.variants) }}
     runs-on: ubuntu-26.04
-    container: ghcr.io/muqtxdir/container-fs/mkosi:amd64
-    defaults:
-      run:
-        shell: bash
     env:
       TAGS: ${{ fromJSON(inputs.tags)[matrix.variant] || matrix.variant }}
       SOURCES: ${{ matrix.variant }}-amd64 ${{ matrix.variant }}-arm64
     steps:
-      - run: oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<< "$GITHUB_TOKEN"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: oras-project/setup-oras@v2.0.2
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: oras manifest index create "${IMAGE,,}:$TAGS" $SOURCES
 
   cleanup:
