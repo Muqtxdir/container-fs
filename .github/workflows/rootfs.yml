@@ -1,0 +1,64 @@
+# Builds each variant with mkosi and pushes it to
+# ghcr.io/<owner>/<repo>/<distro>:<variant>, a multi-arch index of the
+# per-architecture images tagged <variant>-<arch>. The index also gets the
+# variant's extra tags from the tags input.
+name: rootfs
+
+on:
+  workflow_call:
+    inputs:
+      distro:
+        type: string
+        required: true
+      variants:
+        type: string
+        required: true
+      arches:
+        type: string
+        default: '["amd64", "arm64"]'
+      # Extra tags per variant, e.g. {"stable": "latest,main"}.
+      tags:
+        type: string
+        default: "{}"
+
+env:
+  REPO: ghcr.io/${{ github.repository }}/${{ inputs.distro }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(inputs.variants) }}
+        arch: ${{ fromJSON(inputs.arches) }}
+    # Native runners: emulated builds are too slow.
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.distro }}
+    env:
+      IMAGE: ${{ inputs.distro }}-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: systemd/mkosi@v27.1
+      - uses: oras-project/setup-oras@v2.0.2
+      # As root, so the image keeps the packages' file ownership.
+      - run: sudo mkosi --include ${{ matrix.variant }}.conf --force build
+      - run: |
+          oras login ghcr.io -u ${{ github.actor }} --password-stdin <<< ${{ github.token }}
+          oras cp --from-oci-layout "mkosi.output/$IMAGE:$IMAGE" "$REPO:${{ matrix.variant }}-${{ matrix.arch }}"
+
+  index:
+    needs: build
+    strategy:
+      matrix:
+        variant: ${{ fromJSON(inputs.variants) }}
+    runs-on: ubuntu-latest
+    env:
+      TAGS: ${{ fromJSON(inputs.tags)[matrix.variant] }}
+    steps:
+      - uses: oras-project/setup-oras@v2.0.2
+      - run: |
+          oras login ghcr.io -u ${{ github.actor }} --password-stdin <<< ${{ github.token }}
+          oras manifest index create "$REPO:${{ matrix.variant }}${TAGS:+,$TAGS}" \
+            $(jq -r '.[] | "${{ matrix.variant }}-\(.)"' <<< '${{ inputs.arches }}')

@@ -1,0 +1,28 @@
+name: debian
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - debian/**
+      - common.conf
+      - .github/workflows/debian.yml
+      - .github/workflows/rootfs.yml
+  schedule:
+    - cron: "15 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  rootfs:
+    uses: ./.github/workflows/rootfs.yml
+    with:
+      distro: debian
+      variants: '["stable", "testing", "unstable"]'
+      tags: |
+        {
+          "stable": "latest,main"
+        }
