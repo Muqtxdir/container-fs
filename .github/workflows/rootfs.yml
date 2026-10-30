@@ -1,7 +1,6 @@
 # Builds each variant with mkosi and pushes it to
 # ghcr.io/<owner>/<repo>/<distro>:<variant>, a multi-arch index of the
-# per-architecture images tagged <variant>-<arch>. The index also gets the
-# variant's extra tags from the tags input.
+# per-architecture images tagged <variant>-<arch>.
 name: rootfs
 
 on:
@@ -13,16 +12,16 @@ on:
       variants:
         type: string
         required: true
-      arches:
-        type: string
-        default: '["amd64", "arm64"]'
-      # Extra tags per variant, e.g. {"stable": "latest,main"}.
       tags:
         type: string
         default: "{}"
 
+permissions:
+  contents: read
+  packages: write
+
 env:
-  REPO: ghcr.io/${{ github.repository }}/${{ inputs.distro }}
+  IMAGE: ghcr.io/${{ github.repository }}/${{ inputs.distro }}
 
 jobs:
   build:
@@ -30,35 +29,43 @@ jobs:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(inputs.variants) }}
-        arch: ${{ fromJSON(inputs.arches) }}
-    # Native runners: emulated builds are too slow.
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
     defaults:
       run:
         working-directory: ${{ inputs.distro }}
     env:
-      IMAGE: ${{ inputs.distro }}-${{ matrix.variant }}
+      CONFIG: ${{ matrix.variant }}.conf
+      LAYOUT: mkosi.output/${{ inputs.distro }}-${{ matrix.variant }}:${{ inputs.distro }}-${{ matrix.variant }}
+      TAG: ${{ matrix.variant }}-${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - uses: systemd/mkosi@v27.1
       - uses: oras-project/setup-oras@v2.0.2
-      # As root, so the image keeps the packages' file ownership.
-      - run: sudo mkosi --include ${{ matrix.variant }}.conf --force build
-      - run: |
-          oras login ghcr.io -u ${{ github.actor }} --password-stdin <<< ${{ github.token }}
-          oras cp --from-oci-layout "mkosi.output/$IMAGE:$IMAGE" "$REPO:${{ matrix.variant }}-${{ matrix.arch }}"
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: sudo mkosi --include "$CONFIG" --force build
+      - run: oras cp --from-oci-layout "$LAYOUT" "${IMAGE,,}:$TAG"
 
   index:
     needs: build
     strategy:
       matrix:
         variant: ${{ fromJSON(inputs.variants) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
-      TAGS: ${{ fromJSON(inputs.tags)[matrix.variant] }}
+      TAGS: ${{ fromJSON(inputs.tags)[matrix.variant] || matrix.variant }}
+      SOURCES: ${{ matrix.variant }}-amd64 ${{ matrix.variant }}-arm64
     steps:
       - uses: oras-project/setup-oras@v2.0.2
-      - run: |
-          oras login ghcr.io -u ${{ github.actor }} --password-stdin <<< ${{ github.token }}
-          oras manifest index create "$REPO:${{ matrix.variant }}${TAGS:+,$TAGS}" \
-            $(jq -r '.[] | "${{ matrix.variant }}-\(.)"' <<< '${{ inputs.arches }}')
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: oras manifest index create "${IMAGE,,}:$TAGS" $SOURCES
