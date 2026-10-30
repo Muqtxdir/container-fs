@@ -33,5 +33,5 @@ jobs:
           push: true
           tags: ghcr.io/muqtxdir/container-fs/mkosi:${{ matrix.arch }}
           provenance: false
-          cache-from: type=gha,scope=${{ matrix.arch }}
-          cache-to: type=gha,scope=${{ matrix.arch }},mode=max
+          cache-from: type=registry,ref=ghcr.io/muqtxdir/container-fs/mkosi:${{ matrix.arch }}-buildcache
+          cache-to: type=registry,ref=ghcr.io/muqtxdir/container-fs/mkosi:${{ matrix.arch }}-buildcache,mode=max,image-manifest=true,oci-mediatypes=true
