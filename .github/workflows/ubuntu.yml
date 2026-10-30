@@ -1,0 +1,29 @@
+name: ubuntu
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ubuntu/**
+      - common.conf
+      - .github/workflows/ubuntu.yml
+      - .github/workflows/rootfs.yml
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  rootfs:
+    uses: ./.github/workflows/rootfs.yml
+    with:
+      distro: ubuntu
+      variants: '["lts", "rolling"]'
+      tags: |
+        {
+          "lts": "lts,latest,resolute,main,26.04",
+          "rolling": "rolling,stonking,26.10"
+        }
